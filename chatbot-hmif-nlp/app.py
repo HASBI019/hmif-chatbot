@@ -245,7 +245,7 @@ with col2:
 
         contoh = [
             "Apa itu HMIF?",
-            "Siapa Ketua HMIF?",
+            "ulang tahun hmif",
             "Visi Misi HMIF"
         ]
 
@@ -276,3 +276,4 @@ st.markdown("""
 <a href="https://www.tiktok.com/@hmif_sttcipasung" target="_blank">Tiktok</a>
 </div>
 """, unsafe_allow_html=True)
+
