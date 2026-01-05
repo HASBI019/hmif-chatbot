@@ -117,12 +117,14 @@ section.main {
 @st.cache_resource
 def load_model():
     try:
-        with open("../models/tfidf_vectorizer.pkl", "rb") as f:
+        # PERBAIKAN: Menghapus "../" karena app.py sudah sejajar dengan folder models
+        with open("models/tfidf_vectorizer.pkl", "rb") as f:
             vectorizer = pickle.load(f)
-        with open("../models/hmif_chatbot_data.pkl", "rb") as f:
+        with open("models/hmif_chatbot_data.pkl", "rb") as f:
             df = pickle.load(f)
         return vectorizer, df
-    except:
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
         return None, None
 
 vectorizer, df = load_model()
@@ -130,7 +132,7 @@ stemmer = StemmerFactory().create_stemmer()
 
 def chatbot_response(text):
     if vectorizer is None:
-        return "⚠️ Model belum dimuat dengan benar."
+        return "⚠️ Model belum dimuat dengan benar. Cek path file .pkl kamu."
     text = stemmer.stem(text.lower())
     vec = vectorizer.transform([text])
     sim = cosine_similarity(vec, vectorizer.transform(df["clean_question"]))
@@ -140,8 +142,11 @@ def chatbot_response(text):
 with st.sidebar:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-
-        st.image("assets/logo_hmif.png", width=140)
+        # PERBAIKAN: Menghapus "assets/" karena file gambar sudah di root
+        try:
+            st.image("logo_hmif.png", width=140)
+        except:
+            st.write("Logo HMIF") # Cadangan kalau gambar gagal
 
     st.markdown("""
     <h2 style='color:#38BDF8;text-align:center;'>HMIF Assistant</h2>
@@ -218,7 +223,3 @@ st.markdown("""
 <a href="https://www.tiktok.com/@hmif_sttcipasung?_r=1&_t=ZS-92R0pbD83kq" target="_blank">Tiktok</a>
 </div>
 """, unsafe_allow_html=True)
-
-
-
-
