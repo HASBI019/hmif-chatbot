@@ -119,9 +119,9 @@ section.main {
 def load_model():
     # Cek berbagai kemungkinan lokasi folder models
     possible_paths = [
-        "models/",                   # Jika folder models ada di root
-        "chatbot-hmif-nlp/models/",  # Jika masih di folder lama
-        "../models/"                 # Cadangan
+        "models/",                   
+        "chatbot-hmif-nlp/models/",  
+        "../models/"                 
     ]
     
     path_found = ""
@@ -131,7 +131,6 @@ def load_model():
             break
             
     if path_found == "":
-        # Jangan error, return None aja biar UI tetap jalan
         return None, None
 
     try:
@@ -150,8 +149,9 @@ stemmer = StemmerFactory().create_stemmer()
 def chatbot_response(text):
     text_lower = text.lower()
 
-    # --- BAGIAN 1: MANUAL OVERRIDE (KUNCI JAWABAN) ---
-    # Ini supaya jawaban Permikomnas & Sejarah 100% Benar sesuai kemauanmu
+    # --- BAGIAN 1: MANUAL OVERRIDE (Hanya untuk Permikomnas & Sejarah) ---
+    # SAYA SUDAH MENGHAPUS BAGIAN "KETUA" DARI SINI
+    # Jadi bot sekarang akan mencari info Ketua langsung dari CSV/Model
     
     if "permikomnas" in text_lower:
         return "Permikomnas adalah Perhimpunan Mahasiswa Informatika dan Komputer Nasional. Wadah ini menyatukan mahasiswa IT dari seluruh Indonesia untuk berkolaborasi dan berkembang bersama."
@@ -159,24 +159,25 @@ def chatbot_response(text):
     if "sejarah" in text_lower and "hmif" in text_lower:
         return "HMIF didirikan pada tanggal 20 Februari dan diresmikan pada tanggal 20 Februari 2021, sebagai wadah aspirasi mahasiswa Informatika."
     
-    if "ketua" in text_lower or "kahim" in text_lower:
-        return "Ketua HMIF saat ini dijabat oleh [Nama Ketua], yang terpilih melalui musyawarah besar mahasiswa."
-
     # --- BAGIAN 2: DATA DARI MODEL AI (.PKL) ---
     if vectorizer is None:
-        return "⚠️ Maaf, otak bot (Model AI) belum ketemu path-nya. Tapi fitur chat manual Permikomnas sudah jalan."
+        return "⚠️ Maaf, otak bot (Model AI) belum ketemu path-nya."
 
     try:
+        # 1. Stemming: Mengubah "Ketuanya siapa?" jadi "ketua siapa" biar cocok sama CSV
         text_stemmed = stemmer.stem(text_lower)
+        
+        # 2. Hitung Kemiripan
         vec = vectorizer.transform([text_stemmed])
         sim = cosine_similarity(vec, vectorizer.transform(df["clean_question"]))
         
         best_match_index = np.argmax(sim)
         score = sim[0][best_match_index]
 
-        # Jika kemiripan di bawah 10%, anggap bot tidak tahu
+        # 3. Cek Ambang Batas (Threshold)
+        # Kalau kemiripan di bawah 10%, anggap bot tidak tahu
         if score < 0.1:
-            return "Maaf, saya kurang paham. Bisa coba tanya tentang 'Program Kerja' atau 'Permikomnas'?"
+            return "Maaf, saya kurang paham. Coba gunakan kata kunci lain seperti 'Ketua Himpunan' atau 'Program Kerja'."
             
         return df.iloc[best_match_index]["answer"]
         
@@ -187,7 +188,6 @@ def chatbot_response(text):
 with st.sidebar:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        # Cek lokasi gambar secara otomatis
         logo_path = None
         if os.path.exists("logo_hmif.png"):
             logo_path = "logo_hmif.png"
@@ -199,7 +199,6 @@ with st.sidebar:
         if logo_path:
             st.image(logo_path, width=140)
         else:
-            # Placeholder kalau gambar ga ketemu
             st.markdown("<div style='text-align:center; font-size:40px;'>🤖</div>", unsafe_allow_html=True)
 
     st.markdown("""
@@ -246,7 +245,7 @@ with col2:
 
         contoh = [
             "Apa itu HMIF?",
-            "Apa itu Permikomnas?",
+            "Siapa Ketua HMIF?",
             "Visi Misi HMIF"
         ]
 
