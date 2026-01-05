@@ -1,5 +1,6 @@
 import streamlit as st
 import pickle
+import os
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -116,11 +117,27 @@ section.main {
 # ================= LOAD MODEL =================
 @st.cache_resource
 def load_model():
+    # Coba cari folder models di beberapa kemungkinan lokasi
+    possible_paths = [
+        "chatbot-hmif-nlp/models/",  # Lokasi kemungkinan besar (di dalam folder lama)
+        "models/",                   # Lokasi jika folder models sudah dipindah ke depan
+        "../models/"                 # Lokasi cadangan
+    ]
+    
+    path_found = ""
+    for p in possible_paths:
+        if os.path.exists(p + "tfidf_vectorizer.pkl"):
+            path_found = p
+            break
+            
+    if path_found == "":
+        st.error("❌ File model tidak ditemukan! Pastikan folder 'models' ada di GitHub.")
+        return None, None
+
     try:
-        # PERBAIKAN: Menghapus "../" karena app.py sudah sejajar dengan folder models
-        with open("models/tfidf_vectorizer.pkl", "rb") as f:
+        with open(path_found + "tfidf_vectorizer.pkl", "rb") as f:
             vectorizer = pickle.load(f)
-        with open("models/hmif_chatbot_data.pkl", "rb") as f:
+        with open(path_found + "hmif_chatbot_data.pkl", "rb") as f:
             df = pickle.load(f)
         return vectorizer, df
     except Exception as e:
@@ -132,7 +149,7 @@ stemmer = StemmerFactory().create_stemmer()
 
 def chatbot_response(text):
     if vectorizer is None:
-        return "⚠️ Model belum dimuat dengan benar. Cek path file .pkl kamu."
+        return "⚠️ Maaf, otak bot sedang ketinggalan. Admin perlu cek path file modelnya."
     text = stemmer.stem(text.lower())
     vec = vectorizer.transform([text])
     sim = cosine_similarity(vec, vectorizer.transform(df["clean_question"]))
@@ -142,11 +159,15 @@ def chatbot_response(text):
 with st.sidebar:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        # PERBAIKAN: Menghapus "assets/" karena file gambar sudah di root
-        try:
+        # Cek gambar ada di mana
+        if os.path.exists("logo_hmif.png"):
             st.image("logo_hmif.png", width=140)
-        except:
-            st.write("Logo HMIF") # Cadangan kalau gambar gagal
+        elif os.path.exists("assets/logo_hmif.png"):
+            st.image("assets/logo_hmif.png", width=140)
+        elif os.path.exists("chatbot-hmif-nlp/app/assets/logo_hmif.png"):
+            st.image("chatbot-hmif-nlp/app/assets/logo_hmif.png", width=140)
+        else:
+            st.markdown("<h3 style='text-align:center;'>Logo HMIF</h3>", unsafe_allow_html=True)
 
     st.markdown("""
     <h2 style='color:#38BDF8;text-align:center;'>HMIF Assistant</h2>
