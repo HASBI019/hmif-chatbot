@@ -117,11 +117,11 @@ section.main {
 # ================= LOAD MODEL =================
 @st.cache_resource
 def load_model():
-    # Coba cari folder models di beberapa kemungkinan lokasi
+    # Cek berbagai kemungkinan lokasi folder models
     possible_paths = [
-        "chatbot-hmif-nlp/models/",  # Lokasi kemungkinan besar (di dalam folder lama)
-        "models/",                   # Lokasi jika folder models sudah dipindah ke depan
-        "../models/"                 # Lokasi cadangan
+        "models/",                   # Jika folder models ada di root
+        "chatbot-hmif-nlp/models/",  # Jika masih di folder lama
+        "../models/"                 # Cadangan
     ]
     
     path_found = ""
@@ -131,7 +131,7 @@ def load_model():
             break
             
     if path_found == "":
-        st.error("❌ File model tidak ditemukan! Pastikan folder 'models' ada di GitHub.")
+        # Jangan error, return None aja biar UI tetap jalan
         return None, None
 
     try:
@@ -141,33 +141,66 @@ def load_model():
             df = pickle.load(f)
         return vectorizer, df
     except Exception as e:
-        st.error(f"Error loading model: {e}")
         return None, None
 
 vectorizer, df = load_model()
 stemmer = StemmerFactory().create_stemmer()
 
+# ================= LOGIKA CHATBOT =================
 def chatbot_response(text):
+    text_lower = text.lower()
+
+    # --- BAGIAN 1: MANUAL OVERRIDE (KUNCI JAWABAN) ---
+    # Ini supaya jawaban Permikomnas & Sejarah 100% Benar sesuai kemauanmu
+    
+    if "permikomnas" in text_lower:
+        return "Permikomnas adalah Perhimpunan Mahasiswa Informatika dan Komputer Nasional. Wadah ini menyatukan mahasiswa IT dari seluruh Indonesia untuk berkolaborasi dan berkembang bersama."
+    
+    if "sejarah" in text_lower and "hmif" in text_lower:
+        return "HMIF didirikan pada tanggal 20 Februari dan diresmikan pada tanggal 20 Februari 2021, sebagai wadah aspirasi mahasiswa Informatika."
+    
+    if "ketua" in text_lower or "kahim" in text_lower:
+        return "Ketua HMIF saat ini dijabat oleh [Nama Ketua], yang terpilih melalui musyawarah besar mahasiswa."
+
+    # --- BAGIAN 2: DATA DARI MODEL AI (.PKL) ---
     if vectorizer is None:
-        return "⚠️ Maaf, otak bot sedang ketinggalan. Admin perlu cek path file modelnya."
-    text = stemmer.stem(text.lower())
-    vec = vectorizer.transform([text])
-    sim = cosine_similarity(vec, vectorizer.transform(df["clean_question"]))
-    return df.iloc[np.argmax(sim)]["answer"]
+        return "⚠️ Maaf, otak bot (Model AI) belum ketemu path-nya. Tapi fitur chat manual Permikomnas sudah jalan."
+
+    try:
+        text_stemmed = stemmer.stem(text_lower)
+        vec = vectorizer.transform([text_stemmed])
+        sim = cosine_similarity(vec, vectorizer.transform(df["clean_question"]))
+        
+        best_match_index = np.argmax(sim)
+        score = sim[0][best_match_index]
+
+        # Jika kemiripan di bawah 10%, anggap bot tidak tahu
+        if score < 0.1:
+            return "Maaf, saya kurang paham. Bisa coba tanya tentang 'Program Kerja' atau 'Permikomnas'?"
+            
+        return df.iloc[best_match_index]["answer"]
+        
+    except Exception:
+        return "Maaf, ada gangguan teknis pada sistem pemrosesan kata."
 
 # ================= SIDEBAR =================
 with st.sidebar:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        # Cek gambar ada di mana
+        # Cek lokasi gambar secara otomatis
+        logo_path = None
         if os.path.exists("logo_hmif.png"):
-            st.image("logo_hmif.png", width=140)
+            logo_path = "logo_hmif.png"
         elif os.path.exists("assets/logo_hmif.png"):
-            st.image("assets/logo_hmif.png", width=140)
+            logo_path = "assets/logo_hmif.png"
         elif os.path.exists("chatbot-hmif-nlp/app/assets/logo_hmif.png"):
-            st.image("chatbot-hmif-nlp/app/assets/logo_hmif.png", width=140)
+            logo_path = "chatbot-hmif-nlp/app/assets/logo_hmif.png"
+            
+        if logo_path:
+            st.image(logo_path, width=140)
         else:
-            st.markdown("<h3 style='text-align:center;'>Logo HMIF</h3>", unsafe_allow_html=True)
+            # Placeholder kalau gambar ga ketemu
+            st.markdown("<div style='text-align:center; font-size:40px;'>🤖</div>", unsafe_allow_html=True)
 
     st.markdown("""
     <h2 style='color:#38BDF8;text-align:center;'>HMIF Assistant</h2>
@@ -190,7 +223,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# ================= MAIN =================
+# ================= MAIN PAGE =================
 col1, col2, col3 = st.columns([1,2,1])
 
 with col2:
@@ -213,8 +246,8 @@ with col2:
 
         contoh = [
             "Apa itu HMIF?",
-            "Kapan Berdirinya HMIF?",
-            "Apa itu Permikomnas?"
+            "Apa itu Permikomnas?",
+            "Visi Misi HMIF"
         ]
 
         for c in contoh:
@@ -228,7 +261,7 @@ with col2:
         with st.chat_message(msg["role"], avatar=avatar):
             st.write(msg["content"])
 
-# ================= INPUT =================
+# ================= INPUT FIELD =================
 if prompt := st.chat_input("Tulis pertanyaan..."):
     st.session_state.messages.append({"role":"user","content":prompt})
     with st.spinner("Mengetik jawaban..."):
@@ -240,7 +273,7 @@ if prompt := st.chat_input("Tulis pertanyaan..."):
 st.markdown("""
 <div class="hmif-footer">
 © 2025 HMIF • Chatbot HMIF |
-<a href="https://www.instagram.com/hmif_sttcipasung?igsh=cW84cGpwdWJhd2No" target="_blank">Instagram</a> |
-<a href="https://www.tiktok.com/@hmif_sttcipasung?_r=1&_t=ZS-92R0pbD83kq" target="_blank">Tiktok</a>
+<a href="https://www.instagram.com/hmif_sttcipasung" target="_blank">Instagram</a> |
+<a href="https://www.tiktok.com/@hmif_sttcipasung" target="_blank">Tiktok</a>
 </div>
 """, unsafe_allow_html=True)
