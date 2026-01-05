@@ -141,7 +141,7 @@ with st.sidebar:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
         pass
-        #st.image("assets/logo_hmif.png", width=140)
+        st.image("assets/logo_hmif.png", width=140)
 
     st.markdown("""
     <h2 style='color:#38BDF8;text-align:center;'>HMIF Assistant</h2>
@@ -218,5 +218,6 @@ st.markdown("""
 <a href="https://www.tiktok.com/@hmif_sttcipasung?_r=1&_t=ZS-92R0pbD83kq" target="_blank">Tiktok</a>
 </div>
 """, unsafe_allow_html=True)
+
 
 
